@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
+	"strings"
 )
 
 type Urls struct {
@@ -41,17 +41,35 @@ func main() {
 	r := Response{}
 	jsonDecoder.Decode(&r)
 
-	var wg sync.WaitGroup
+	printChapterList(r.Chapters)
 
-	for _, chapter := range r.Chapters {
-		wg.Add(1)
-		go func(chapter *Chapter) {
-			defer wg.Done()
-			save(chapter)
-		}(&chapter)
+	var prompt string
+
+	for strings.ToLower(prompt) != "n" {
+		var chapterNumber string
+
+		fmt.Print("Enter the Surah number to download: ")
+		_, err = fmt.Scanln(&chapterNumber)
+
+		if err != nil {
+			log.Println("Could not get the Surah number", err)
+			return
+		}
+
+		for _, chapter := range r.Chapters {
+			if chapter.Order == chapterNumber {
+				save(&chapter)
+			}
+		}
+
+		fmt.Print("Want to continue downloading? (y/n): ")
+		_, err = fmt.Scanln(&prompt)
+
+		if err != nil {
+			log.Println("could not understand your answer", err)
+			return
+		}
 	}
-
-	wg.Wait()
 }
 
 func save(chapter *Chapter) {
@@ -76,6 +94,8 @@ func save(chapter *Chapter) {
 		return
 	}
 
+	log.Println("writing the audio file: ", chapter.FileName)
+
 	_, err = file.Write(audioContent)
 
 	if err != nil {
@@ -83,5 +103,13 @@ func save(chapter *Chapter) {
 		return
 	}
 
-	fmt.Println("file downloaded and saved", chapter.FileName)
+	log.Println("file downloaded and saved", chapter.FileName)
+}
+
+func printChapterList(chapters []Chapter) {
+	fmt.Println("List of Surahs:")
+	fmt.Println("---------------")
+	for _, chapter := range chapters {
+		fmt.Printf("\t%s. %s\n", chapter.Order, chapter.TitleEnglish)
+	}
 }
